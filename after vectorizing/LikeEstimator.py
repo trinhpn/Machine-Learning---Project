@@ -1,40 +1,58 @@
+"""
+@author: Mai Pham
+"""
 import pickle
-
-import numpy
-import pandas
-
+import numpy as np
+from sklearn.model_selection import KFold
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.naive_bayes import BernoulliNB
 from sklearn.linear_model import LinearRegression
-
+from sklearn.svm import SVR
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier, VotingClassifier
+from sklearn.cross_validation import cross_val_score
 CONST_SPLIT_DATA = False
 CONST_SPLIT_SIZE = 8000
 CONST_BIG5 = ['ope', 'ext', 'con', 'agr', 'neu']
 CONST_AGE_MODEL = "nb"
 CONST_GENDER_MODEL = "nb"
-CONST_PERSONALITY_MODEL = "lr"
+CONST_PERSONALITY_MODEL = "svr"
 CONST_PICKLE_FILENAME = "like_est.pkl"
 
 class Estimator:
     def __init__(self, theDataframe):
+        clf1 = MultinomialNB()
+        clf2 = RandomForestClassifier(random_state=1)
+        clf3 = BernoulliNB()
+        clf4 = KNeighborsClassifier(n_neighbors=5)
         if CONST_AGE_MODEL == "nb":
             self.agePredictor = MultinomialNB()
         elif CONST_AGE_MODEL == "lr":
             self.agePredictor = LinearRegression()
-
+        elif CONST_AGE_MODEL == "voting":
+            self.agePredictor = VotingClassifier(estimators=[('mnb', clf1), ('rf', clf2), ('knn', clf4)], voting='hard')
+            
         if CONST_GENDER_MODEL == "nb":
             self.genderPredictor = MultinomialNB()
         elif CONST_GENDER_MODEL == "lr":
             self.genderPredictor = LinearRegression()
-
+        elif CONST_GENDER_MODEL == "voting":
+            self.genderPredictor = VotingClassifier(estimators=[('mnb', clf1), ('rf', clf2), ('bnb', clf3)], voting='hard')
+            
         if CONST_PERSONALITY_MODEL == "lr":
             self.personalityPredictor = LinearRegression()
-
+        elif CONST_PERSONALITY_MODEL == "svr":
+            self.svrOpePredictor = SVR(kernel='rbf')
+            self.svrExtPredictor = SVR(kernel='rbf')
+            self.svrConPredictor = SVR(kernel='rbf')
+            self.svrAgrPredictor = SVR(kernel='rbf')
+            self.svrNeuPredictor = SVR(kernel='rbf')
         self.countVectorizer = CountVectorizer()
                 
         if CONST_SPLIT_DATA:
             # Calculate number of users (n)
-            allIDs = numpy.arange(len(theDataframe))
+            allIDs = np.arange(len(theDataframe))
 
             # Split data into the users from 0 to SPLIT_DATA_SIZE
             # for training and the rest of the users for testing.
@@ -64,8 +82,15 @@ class Estimator:
         self.genderPredictor.fit(X, y)
 
     def trainPersonality(self, X, y):
-        self.personalityPredictor.fit(X, y)
-
+        if CONST_PERSONALITY_MODEL != "svr":
+            self.personalityPredictor.fit(X, y)
+        else:
+            self.svrOpePredictor.fit(X, y.loc[:,'ope'])
+            self.svrExtPredictor.fit(X, y.loc[:,'ext'])
+            self.svrConPredictor.fit(X, y.loc[:,'con'])
+            self.svrAgrPredictor.fit(X, y.loc[:,'agr'])
+            self.svrNeuPredictor.fit(X, y.loc[:,'neu'])
+            
     def predictAge(self, testDataframe):
         test_X = self.countVectorizer.transform(testDataframe['ids'])
         test_y = self.agePredictor.predict(test_X)
@@ -86,10 +111,22 @@ class Estimator:
 
     def predictPersonality(self, testDataframe):
         test_X = self.countVectorizer.transform(testDataframe['ids'])
-        test_y = self.personalityPredictor.predict(test_X)
-        
         resultingDataframe = testDataframe.copy()
-        resultingDataframe.loc[:,CONST_BIG5] = test_y
+
+        if CONST_PERSONALITY_MODEL != "svr":
+            test_y = self.personalityPredictor.predict(test_X)
+            resultingDataframe.loc[:,CONST_BIG5] = test_y
+        else:
+            test_ope = self.svrOpePredictor.predict(test_X)
+            test_ext = self.svrExtPredictor.predict(test_X)
+            test_con = self.svrConPredictor.predict(test_X)
+            test_agr = self.svrAgrPredictor.predict(test_X)
+            test_neu = self.svrNeuPredictor.predict(test_X)
+            resultingDataframe.loc[:,'ope'] = test_ope
+            resultingDataframe.loc[:,'ext'] = test_ext
+            resultingDataframe.loc[:,'con'] = test_con
+            resultingDataframe.loc[:,'agr'] = test_agr
+            resultingDataframe.loc[:,'neu'] = test_neu
 
         return resultingDataframe
 
@@ -107,4 +144,22 @@ class Estimator:
         pickleFile = open(CONST_PICKLE_FILENAME, 'rb')
         return pickle.load(pickleFile)
 
-
+'''
+    def validate_model(df, ageModel):
+        kf = KFold(n_splits=3, shuffle=True, random_state=1)
+        scores = list()
+        cv = CountVectorizer()
+        
+        for train, test in kf.split(df):
+            train_data = df.loc[train,:]
+            test_data = df.loc[test,:]
+            #print(train_data)
+            #print(test_data)
+            train_X = cv.fit_transform(train_data['ids'])
+            ageTrain_y = train_data['age']
+            test_X = cv.fit_transform(test_data['ids'])
+            ageTest_y = test_data['age']
+            model = ageModel.fit(train_X, ageTrain_y)
+            print(model.predict(test_X))
+        #print(scores)
+'''

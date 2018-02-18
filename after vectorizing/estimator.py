@@ -1,10 +1,11 @@
-import pandas as pd
+"""
+@author: Mai Pham
+"""
 import numpy as np
 import sys
+import pandas as pd
 from LikeEstimator import Estimator
-from sklearn.metrics import accuracy_score
-from sklearn import metrics
-from sklearn.utils import shuffle
+
 
 CONST_DEBUG = False
 CONST_TEST_PATH = sys.argv[1]
@@ -13,7 +14,6 @@ CONST_BIG5 = ['ope', 'ext', 'con', 'agr', 'neu']
 
 def main():
     profile_df = pd.read_csv(CONST_TEST_PATH + "profile/profile.csv")
-    
     relation_df = pd.read_csv(CONST_TEST_PATH + "relation/relation.csv")
     testDF = createTestLikeDataframe(profile_df, relation_df)
 
@@ -23,17 +23,6 @@ def main():
     testDF = estimator.predictGender(testDF)
     testDF = estimator.predictPersonality(testDF)
     
-    '''
-    score = [0,0,0,0,0,0,0]
-    score[0] =  accuracy_score(profile_df.age, testDF.age)
-    score[1] =  accuracy_score(profile_df.gender, testDF.gender)
-    score[2] = np.sqrt(metrics.mean_squared_error(profile_df.ope, testDF.ope))
-    score[3] = np.sqrt(metrics.mean_squared_error(profile_df.neu, testDF.neu))
-    score[4] = np.sqrt(metrics.mean_squared_error(profile_df.ext, testDF.ext))
-    score[5] = np.sqrt(metrics.mean_squared_error(profile_df.agr, testDF.agr))
-    score[6] = np.sqrt(metrics.mean_squared_error(profile_df.con, testDF.con))
-    #print(testDF)
-    '''
     dataframeToXML(testDF)
 
 def dataframeToXML(dataframe):
@@ -41,16 +30,13 @@ def dataframeToXML(dataframe):
         userid = dataframe.get_value(index, 'userid')
 
         age = dataframe.get_value(index, 'age')
-
         gender = dataframe.get_value(index, 'gender')
-     
-
         personality = []
-        personality.append(dataframe.get_value(index, 'ext'))
-        personality.append(dataframe.get_value(index, 'neu'))
-        personality.append(dataframe.get_value(index, 'agr'))
-        personality.append(dataframe.get_value(index, 'con'))
-        personality.append(dataframe.get_value(index, 'ope'))
+        personality.append(round(dataframe.get_value(index, 'ext'),2))
+        personality.append(round(dataframe.get_value(index, 'neu'),2))
+        personality.append(round(dataframe.get_value(index, 'agr'),2))
+        personality.append(round(dataframe.get_value(index, 'con'),2))
+        personality.append(round(dataframe.get_value(index, 'ope'),2))
 
         dataToXML(userid, age, gender, personality)
 
@@ -60,11 +46,11 @@ def dataToXML(userid, age, gender, personality):
     file.write("\tid=\"%s\"\n" % (userid))
     file.write("age_group=\"%s\"\n" % (age))
     file.write("gender=\"%s\"\n" % (gender))
-    file.write("extrovert=\"%s\"\n" % (personality[0]))
-    file.write("neurotic=\"%s\"\n" % (personality[1]))
-    file.write("agreeable=\"%s\"\n" % (personality[2]))
-    file.write("conscientious=\"%s\"\n" % (personality[3]))
-    file.write("open=\"%s\"\n" % (personality[4]))
+    file.write("extrovert=\"%s\"\n" % (round(personality[0],2)))
+    file.write("neurotic=\"%s\"\n" % (round(personality[1],2)))
+    file.write("agreeable=\"%s\"\n" % (round(personality[2],2)))
+    file.write("conscientious=\"%s\"\n" % (round(personality[3],2)))
+    file.write("open=\"%s\"\n" % (round(personality[4],2)))
     file.write("/>")
     file.close()
     
